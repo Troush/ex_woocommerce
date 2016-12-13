@@ -19,6 +19,7 @@ defmodule ExWoocommerce.Oauth do
     def get_oauth_url(client) do
       params = %{}
       url = client.url
+      IO.inspect client.url
 
       if String.contains?(url, "?") do
         parsed_url =  URI.parse(url)
@@ -44,9 +45,11 @@ defmodule ExWoocommerce.Oauth do
         |> Map.put("oauth_nonce", :crypto.hash(:sha, nonce_encode) |> Base.encode16)
         |> Map.put("oauth_signature_method", client.signature_method)
         |> Map.put("oauth_timestamp", timestamp)
+      IO.inspect url
       params = Map.put(params, "oauth_signature", URI.encode(generate_oauth_signature(client, params, url)))
-      q = Enum.map(Enum.sort(params), fn {key, value} -> "#{key}=#{value}" end) |> Enum.join("&")
+      q = Enum.map(params, fn {key, value} -> "#{key}=#{value}" end) |> Enum.join("&")
       query_string = URI.encode(q)
+      # IO.inspect "#{url}?#{query_string}" 
       "#{url}?#{query_string}"
     end
 
@@ -58,17 +61,15 @@ defmodule ExWoocommerce.Oauth do
     #
     # Returns the oauth signature String.
     def generate_oauth_signature(client, params, url) do
-      base_request_uri = URI.encode(url)
+      base_request_uri = URI.encode_www_form(url)
       query_params = []
 
-      query_string = Enum.map(
-        Enum.sort(params), fn {key, value} ->
+      query_string = Enum.map(params, fn {key, value} ->
           encode_param(key) <> "%3D" <> encode_param(value)
-        end) |> Enum.join("%26")
+        end) |> Enum.sort |> Enum.join("%26")
 
       string_to_sign = "#{client.method}&#{base_request_uri}&#{query_string}"
       IO.inspect string_to_sign
-
       consumer_secret = "#{client.consumer_secret}&"
       :crypto.hmac(digest(client), consumer_secret, string_to_sign)
       |> Base.encode64
@@ -92,6 +93,6 @@ defmodule ExWoocommerce.Oauth do
     def encode_param(text) do
       esc = URI.encode("#{text}")
       esc = String.replace(esc, "+", "%20")
-      String.replace(esc, "%", "%25")
+      esc = String.replace(esc, "%", "%25")
     end
 end

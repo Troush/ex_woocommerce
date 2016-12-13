@@ -71,6 +71,7 @@ defmodule ExWoocommerce do
     if ( Map.keys(data) |> Enum.count > 0 ) do
       Map.merge(options, %{ body: Poison.encode(data)})
     end
+
     HTTPoison.request(String.to_atom(method), url, "", headers, options)
   end
 
@@ -81,10 +82,9 @@ defmodule ExWoocommerce do
         false  -> "wc-api"
       end
     url = client.url
-    url =
-      unless String.ends_with?(url, "/") do
-        "#{url}/"
-      end
+    unless String.ends_with?(url, "/") do
+      url = "#{url}/"
+    end
     url = "#{url}#{api}/#{client.version}/#{endpoint}"
 
     case client.is_ssl do
