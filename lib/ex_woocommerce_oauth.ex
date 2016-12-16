@@ -37,15 +37,14 @@ defmodule ExWoocommerce.Oauth do
 
       nonce_lifetime = 15 * 60
       timestamp = DateTime.utc_now() |> DateTime.to_unix()
-      nonce_encode = rem(timestamp, nonce_lifetime) + (System.unique_integer([:positive]) * nonce_lifetime) |> Integer.to_string
+      nonce_encode = rem(timestamp, nonce_lifetime) + (System.unique_integer([:positive]) * nonce_lifetime) |> Integer.to_string 
       params =
         params
         |> Map.put("oauth_consumer_key", client.consumer_key)
-        |> Map.put("oauth_nonce", :crypto.hash(:sha, nonce_encode) |> Base.encode16)
         |> Map.put("oauth_signature_method", client.signature_method)
+        |> Map.put("oauth_nonce", random_string(6))
         |> Map.put("oauth_timestamp", timestamp)
-      IO.inspect url
-      params = Map.put(params, "oauth_signature", URI.encode(generate_oauth_signature(client, params, url)))
+      params = Map.put(params, "oauth_signature", URI.encode_www_form(generate_oauth_signature(client, params, url)))
       q = Enum.map(params, fn {key, value} -> "#{key}=#{value}" end) |> Enum.join("&")
       query_string = URI.encode(q)
       "#{url}?#{query_string}"
@@ -67,7 +66,7 @@ defmodule ExWoocommerce.Oauth do
         end) |> Enum.sort |> Enum.join("%26")
 
       string_to_sign = "#{client.method}&#{base_request_uri}&#{query_string}"
-      IO.inspect string_to_sign
+
       consumer_secret = "#{client.consumer_secret}&"
       :crypto.hmac(digest(client), consumer_secret, string_to_sign)
       |> Base.encode64
@@ -92,5 +91,9 @@ defmodule ExWoocommerce.Oauth do
       esc = URI.encode("#{text}")
       esc = String.replace(esc, "+", "%20")
       esc = String.replace(esc, "%", "%25")
+    end
+
+    defp random_string(length) do
+      :crypto.strong_rand_bytes(length) |> Base.url_encode64 |> binary_part(0, length)
     end
 end
