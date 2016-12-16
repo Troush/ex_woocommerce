@@ -19,7 +19,6 @@ defmodule ExWoocommerce.Oauth do
     def get_oauth_url(client) do
       params = %{}
       url = client.url
-      IO.inspect client.url
 
       if String.contains?(url, "?") do
         parsed_url =  URI.parse(url)
@@ -36,7 +35,7 @@ defmodule ExWoocommerce.Oauth do
         url = parsed_url.authority
       end
 
-      nonce_lifetime = 15 * 60 # Woocommerce keeps nonces for 15 minutes
+      nonce_lifetime = 15 * 60
       timestamp = DateTime.utc_now() |> DateTime.to_unix()
       nonce_encode = rem(timestamp, nonce_lifetime) + (System.unique_integer([:positive]) * nonce_lifetime) |> Integer.to_string
       params =
@@ -49,7 +48,6 @@ defmodule ExWoocommerce.Oauth do
       params = Map.put(params, "oauth_signature", URI.encode(generate_oauth_signature(client, params, url)))
       q = Enum.map(params, fn {key, value} -> "#{key}=#{value}" end) |> Enum.join("&")
       query_string = URI.encode(q)
-      # IO.inspect "#{url}?#{query_string}" 
       "#{url}?#{query_string}"
     end
 

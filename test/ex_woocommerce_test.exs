@@ -2,8 +2,6 @@ defmodule ExWoocommerce.OauthTest do
   use ExUnit.Case, async: false
 
   @url "http://localhost:8080"
-  @method "get"
-  @version "v3"
   @key "ck_010730bd8e7bd8cc5b737e15ce20124126f3d97b"
   @secret "cs_d4c27238255ad7824359e91f0c7c20172fda1183"
 
@@ -20,7 +18,6 @@ defmodule ExWoocommerce.OauthTest do
   test "it creates api client and make get request" do
     client = ExWoocommerce.client(@url, @key, @secret)
     res = ExWoocommerce.get(client, "products")
-
     IO.inspect res
   end
 end

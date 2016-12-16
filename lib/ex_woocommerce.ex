@@ -1,16 +1,17 @@
 defmodule ExWoocommerce do
-  alias ExWoocommerce.Oauth
   defstruct url: "", method: "GET", version: "v3",
             consumer_key: "", consumer_secret: "", signature_method: "",
             is_ssl: false, wp_api: false, verify_ssl: true, signature_method: "HMAC-SHA256",
             debug_mode: false, query_string_auth: ""
+  
   def client(url, consumer_key, consumer_secret, args \\ %{}) do
-    %ExWoocommerce{
+    client = %ExWoocommerce{
       url: url,
       consumer_key: consumer_key,
       consumer_secret: consumer_secret,
       is_ssl: String.starts_with?(url, "https://"),
     }
+    Map.merge(client, args)
   end
 
     # Public: GET requests.
@@ -23,15 +24,25 @@ defmodule ExWoocommerce do
     do_request(client, "get", add_query_params(endpoint, query))
   end
 
+  # Public: POST requests.
+  #
+  # endpoint - A String naming the request endpoint.
+  # data     - The Hash data for the request.
+  #
+  # Returns the request Hash.
+  def post(client, endpoint, data) do
+    do_request(client, "post", endpoint, data)
+  end
+
   def add_query_params(endpoint, data) do
     if is_nil(data) || Enum.count(data) == 0 do
       endpoint
     else
       unless String.contains?(endpoint, "?") do
-        endpoint = endpoint <> "?"
+        endpoint <> "?"
       end
       unless String.ends_with?(endpoint, "?") do
-        endpoint = endpoint <> "&"
+        endpoint <> "&"
       end
       endpoint <> URI.encode(Enum.join(data, "&"))
     end
@@ -67,12 +78,15 @@ defmodule ExWoocommerce do
         end
     end
 
-    # options.merge!(debug_output: $stdout) if @debug_mode
-    if ( Map.keys(data) |> Enum.count > 0 ) do
-      Map.merge(options, %{ body: Poison.encode(data)})
-    end
+    options = prepare_options(options, data)
 
-    HTTPoison.request(String.to_atom(method), url, "", headers, options)
+    with {:ok, result} <- HTTPoison.request(String.to_atom(method), url, "", headers, options),
+         {:ok, body}   <- Poison.decode(result.body) do
+         {:ok, body}
+    else
+      {:error, error} ->
+        {:error, error.reason}
+    end 
   end
 
   def get_url(client, endpoint, method) do
@@ -82,11 +96,9 @@ defmodule ExWoocommerce do
         false  -> "wc-api"
       end
     url = client.url
-    unless String.ends_with?(url, "/") do
-      url = "#{url}/"
-    end
+    url = add_slash_to_url(url)
     url = "#{url}#{api}/#{client.version}/#{endpoint}"
-
+    
     case client.is_ssl do
       true  -> url
       false -> oauth_url(client, url, method)
@@ -103,5 +115,22 @@ defmodule ExWoocommerce do
       client.signature_method
     )
     ExWoocommerce.Oauth.get_oauth_url(oauth)
+  end
+
+  defp add_slash_to_url(url) do
+    unless String.ends_with?(url, "/") do
+      "#{url}/"
+    else 
+      url
+    end
+  end
+
+  defp prepare_options(options, data) do
+    options_keys_count = Map.keys(data) |> Enum.count
+    if ( options_keys_count > 0 ) do
+        Map.merge(options, %{ body: Poison.encode(data)})
+    else 
+      options
+    end
   end
 end
